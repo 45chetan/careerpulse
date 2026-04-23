@@ -4,7 +4,7 @@ const CONFIG = {
   // Example: 'https://careerpulse-backend.onrender.com'
   BACKEND_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://careerpulse-backend.onrender.com' // <-- UPDATE THIS AFTER DEPLOYING BACKEND
+    : 'https://careerpulse-render2.onrender.com' // <-- UPDATE THIS AFTER DEPLOYING BACKEND
 };
 
 // Common API endpoints
