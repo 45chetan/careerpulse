@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareerPulse - Find Companies</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="fade-in">
+
+  <div id="loading" class="loading-overlay hidden">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg navbar-light glass-card mb-4" style="border-radius: 0; border-top: none; border-left: none; border-right: none;">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="dashboard.html" style="color: var(--primary-color);">
+        <i class="fas fa-briefcase"></i> CareerPulse
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+          <li class="nav-item">
+            <a class="nav-link" href="dashboard.html">Tracker</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="find-jobs.html">Find Jobs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active fw-bold" aria-current="page" href="find-companies.html">Find Companies</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav flex-row align-items-center mt-3 mt-lg-0">
+          <li class="nav-item me-3">
+            <button class="btn btn-outline-secondary btn-sm" id="toggleDarkMode">
+              <i class="fas fa-moon"></i>
+            </button>
+          </li>
+          <li class="nav-item dropdown ms-2">
+            <a class="nav-link dropdown-toggle d-flex align-items-center p-0" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">
+                <i class="fas fa-user"></i>
+              </div>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end glass-card border-0 shadow mt-2" aria-labelledby="profileDropdown">
+              <li><a class="dropdown-item py-2" href="account.html"><i class="fas fa-user-circle me-2"></i> My Account</a></li>
+              <li><a class="dropdown-item py-2" href="saved-jobs.html"><i class="fas fa-bookmark me-2"></i> Saved Jobs</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item py-2 text-danger" href="#" id="dropdownLogoutBtn"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mb-5">
+    <!-- Header -->
+    <div class="mb-4 text-center">
+      <h2 class="fw-bold" style="color: var(--primary-color);">Find IT Companies</h2>
+      <p class="text-muted">Discover top software and technology companies in your desired location.</p>
+    </div>
+
+    <!-- Search Section -->
+    <div class="row justify-content-center mb-5">
+      <div class="col-md-8 col-lg-6">
+        <div class="glass-card p-4 text-center">
+          <form id="searchCompanyForm">
+            <div class="input-group input-group-lg">
+              <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-map-marker-alt text-primary"></i></span>
+              <input type="text" class="form-control border-start-0" id="searchLocation" placeholder="e.g. Bangalore, Pune, Delhi" required>
+              <button class="btn btn-primary px-4" type="submit">Search</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsCount" class="mb-3 text-muted fw-bold text-center"></div>
+    <div class="row" id="companyResultsContainer">
+      <!-- Company Cards Populated Here -->
+      <div class="col-12 text-center text-muted p-5" id="initialSearchPrompt">
+        <h5><i class="far fa-building mb-3" style="font-size: 2rem;"></i></h5>
+        <p>Enter a city or state and click "Search" to explore IT companies.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="appToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="toastMessage"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="app.js"></script>
+  <script src="find-companies.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!localStorage.getItem('token')) {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
