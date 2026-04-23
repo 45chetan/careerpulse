@@ -121,24 +121,24 @@
 
     <!-- Interview Session Screen (Hidden by default) -->
     <div id="interviewScreen" class="interview-screen hidden">
-      <div class="glass-card p-5 text-center">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div class="timer" id="interviewTimer">00:00</div>
-          <div class="status-indicator">
-            <div class="dot" id="statusDot"></div>
-            <span id="statusText">AI Speaking...</span>
+      <div class="glass-card p-4 p-md-5 text-center shadow-lg border-0" style="background: linear-gradient(180deg, var(--card-bg) 0%, var(--bg-color) 100%);">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+          <div class="timer badge bg-primary-subtle text-primary p-3 fs-5" id="interviewTimer">00:00</div>
+          <div class="status-indicator glass-card px-4 py-2 d-inline-flex align-items-center">
+            <div class="dot me-2" id="statusDot"></div>
+            <span id="statusText" class="fw-bold small text-uppercase">AI Speaking...</span>
           </div>
-          <button class="btn btn-outline-danger btn-sm" id="endInterviewBtn">End Session</button>
+          <button class="btn btn-outline-danger btn-sm px-4" id="endInterviewBtn">End Session</button>
         </div>
 
-        <div class="avatar-container">
+        <div class="avatar-container mb-4">
           <div id="speakingPulse" class="speaking-pulse"></div>
           <img id="aiAvatar" src="" alt="AI Interviewer">
         </div>
 
-        <h4 id="currentQuestion" class="fw-bold my-4">Initializing...</h4>
+        <h4 id="currentQuestion" class="fw-bold my-4 px-lg-5" style="line-height: 1.4;">Initializing...</h4>
 
-        <div id="waveform" class="waveform">
+        <div id="waveform" class="waveform my-5">
           <div class="wave-bar"></div>
           <div class="wave-bar"></div>
           <div class="wave-bar"></div>
@@ -151,11 +151,11 @@
           <div class="wave-bar"></div>
         </div>
 
-        <div id="transcriptContainer" class="p-3 rounded text-muted mb-4 small" style="min-height: 50px; font-style: italic; border: 1px solid var(--border-color);">
+        <div id="transcriptContainer" class="p-4 glass-card text-muted mb-4 small" style="min-height: 80px; font-style: italic; border-style: dashed;">
           Your answer will appear here...
         </div>
 
-        <div class="alert alert-warning py-2 hidden" id="warningAlert">
+        <div class="alert alert-warning py-3 rounded-4 hidden" id="warningAlert">
           <i class="fas fa-exclamation-triangle me-2"></i> <span id="warningMsg">Please stay focused on the interview. This is your first warning.</span>
         </div>
       </div>

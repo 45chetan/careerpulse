@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareerPulse - Voice Mock Interview</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="fade-in">
+
+  <div id="loading" class="loading-overlay hidden">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg glass-card mb-4" style="border-radius: 0; border-top: none; border-left: none; border-right: none;">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="dashboard.html" style="color: var(--primary-color);">
+        <i class="fas fa-briefcase"></i> CareerPulse
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+          <li class="nav-item">
+            <a class="nav-link" href="dashboard.html">Tracker</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="find-jobs.html">Find Jobs</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="find-companies.html">Find Companies</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active fw-bold" aria-current="page" href="mock-interview.html">Voice Interview</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav flex-row align-items-center mt-3 mt-lg-0">
+          <li class="nav-item me-3">
+            <button class="btn btn-outline-secondary btn-sm" id="toggleDarkMode">
+              <i class="fas fa-moon"></i>
+            </button>
+          </li>
+          <li class="nav-item dropdown ms-2">
+            <a class="nav-link dropdown-toggle d-flex align-items-center p-0" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center" style="width: 32px; height: 32px;">
+                <i class="fas fa-user"></i>
+              </div>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end glass-card border-0 shadow mt-2" aria-labelledby="profileDropdown">
+              <li><a class="dropdown-item py-2" href="account.html"><i class="fas fa-user-circle me-2"></i> My Account</a></li>
+              <li><a class="dropdown-item py-2" href="saved-jobs.html"><i class="fas fa-bookmark me-2"></i> Saved Jobs</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item py-2 text-danger" href="#" id="dropdownLogoutBtn"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container interview-container">
+    
+    <!-- Setup Screen -->
+    <div id="setupScreen" class="setup-screen">
+      <div class="glass-card p-5 text-center">
+        <h2 class="fw-bold mb-4">Prepare Your Interview</h2>
+        <p class="text-muted mb-5">Upload your resume and select your preferences to begin the AI-powered voice interview.</p>
+        
+        <form id="setupForm" class="text-start">
+          <div class="row g-4">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Upload Resume (PDF)</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-file-pdf"></i></span>
+                <input type="file" id="resumeUpload" class="form-control" accept=".pdf" required>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Job Role</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-user-tie"></i></span>
+                <input type="text" id="jobRole" class="form-control" placeholder="e.g. Frontend Developer" required>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Experience Level</label>
+              <select id="experienceLevel" class="form-select" required>
+                <option value="Fresher">Fresher</option>
+                <option value="Experienced">Experienced</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">AI Voice Selection</label>
+              <div class="d-flex gap-3 mt-1">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="voiceSelect" id="voiceMale" value="male" checked>
+                  <label class="form-check-label" for="voiceMale">Male Voice</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="voiceSelect" id="voiceFemale" value="female">
+                  <label class="form-check-label" for="voiceFemale">Female Voice</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="text-center mt-5">
+            <button type="submit" id="startInterviewBtn" class="btn btn-primary btn-lg px-5">
+              <i class="fas fa-microphone me-2"></i> Start Interview
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Interview Session Screen (Hidden by default) -->
+    <div id="interviewScreen" class="interview-screen hidden">
+      <div class="glass-card p-5 text-center">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="timer" id="interviewTimer">00:00</div>
+          <div class="status-indicator">
+            <div class="dot" id="statusDot"></div>
+            <span id="statusText">AI Speaking...</span>
+          </div>
+          <button class="btn btn-outline-danger btn-sm" id="endInterviewBtn">End Session</button>
+        </div>
+
+        <div class="avatar-container">
+          <div id="speakingPulse" class="speaking-pulse"></div>
+          <img id="aiAvatar" src="" alt="AI Interviewer">
+        </div>
+
+        <h4 id="currentQuestion" class="fw-bold my-4">Initializing...</h4>
+
+        <div id="waveform" class="waveform">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+
+        <div id="transcriptContainer" class="p-3 rounded text-muted mb-4 small" style="min-height: 50px; font-style: italic; border: 1px solid var(--border-color);">
+          Your answer will appear here...
+        </div>
+
+        <div class="alert alert-warning py-2 hidden" id="warningAlert">
+          <i class="fas fa-exclamation-triangle me-2"></i> <span id="warningMsg">Please stay focused on the interview. This is your first warning.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Report Screen (Hidden by default) -->
+    <div id="feedbackScreen" class="feedback-screen hidden">
+      <div class="glass-card p-5">
+        <div class="text-center mb-5">
+          <h2 class="fw-bold">Interview Performance Report</h2>
+          <div class="display-1 fw-bold text-primary" id="finalScore">7/10</div>
+          <p class="text-muted">Overall Performance Score</p>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <h5 class="fw-bold mb-3"><i class="fas fa-thumbs-up text-success me-2"></i> Key Strengths</h5>
+            <div id="strengthsList">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h5 class="fw-bold mb-3"><i class="fas fa-chart-line text-warning me-2"></i> Areas for Improvement</h5>
+            <div id="improvementsList">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          
+          <div class="col-12">
+            <div class="glass-card p-4 feedback-card">
+              <h5 class="fw-bold mb-3"><i class="fas fa-comments text-info me-2"></i> Communication Feedback</h5>
+              <div class="row">
+                <div class="col-md-4">
+                  <strong>Fluency:</strong> <p id="fluencyRating" class="text-muted"></p>
+                </div>
+                <div class="col-md-4">
+                  <strong>Grammar:</strong> <p id="grammarRating" class="text-muted"></p>
+                </div>
+                <div class="col-md-4">
+                  <strong>Clarity:</strong> <p id="clarityRating" class="text-muted"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="glass-card p-4 feedback-card" style="border-left-color: #e67e22;">
+              <h5 class="fw-bold mb-3"><i class="fas fa-code text-danger me-2"></i> Technical & Content Feedback</h5>
+              <div class="row">
+                <div class="col-md-6">
+                  <strong>Strong Topics:</strong>
+                  <div id="strongTopicsList" class="mt-2"></div>
+                </div>
+                <div class="col-md-6">
+                  <strong>Weak Areas for Revision:</strong>
+                  <div id="weakAreasList" class="mt-2"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 text-center mt-4">
+            <button class="btn btn-primary px-5" onclick="window.location.reload()">
+              <i class="fas fa-redo me-2"></i> Practice Again
+            </button>
+            <a href="dashboard.html" class="btn btn-outline-secondary px-5 ms-2">
+              <i class="fas fa-home me-2"></i> Go to Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="mock-interview.js"></script>
+</body>
+</html>

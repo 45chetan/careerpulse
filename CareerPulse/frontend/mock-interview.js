@@ -373,20 +373,41 @@ function displayFeedback(data) {
   interviewScreen.classList.add('hidden');
   feedbackScreen.classList.remove('hidden');
   
-  document.getElementById('finalScore').innerText = `${data.overallScore}/10`;
+  const score = data.overallScore || 0;
+  const scoreEl = document.getElementById('finalScore');
+  const progressBar = document.getElementById('scoreProgressBar');
+  
+  // Animate Score and Progress Bar
+  let currentScore = 0;
+  const interval = setInterval(() => {
+    if (currentScore >= score) {
+      clearInterval(interval);
+    } else {
+      currentScore++;
+      scoreEl.innerText = `${currentScore}/10`;
+      progressBar.style.width = `${(currentScore / 10) * 100}%`;
+    }
+  }, 100);
   
   const strengthsList = document.getElementById('strengthsList');
-  strengthsList.innerHTML = data.strengths.map(s => `<div class="strength-tag">${s}</div>`).join('');
+  strengthsList.innerHTML = (data.strengths || []).map(s => `<div class="strength-tag"><i class="fas fa-check-circle"></i> ${s}</div>`).join('');
   
   const improvementsList = document.getElementById('improvementsList');
-  improvementsList.innerHTML = data.areasForImprovement.map(i => `<div class="improvement-tag">${i}</div>`).join('');
+  improvementsList.innerHTML = (data.areasForImprovement || []).map(i => `<div class="improvement-tag"><i class="fas fa-arrow-up"></i> ${i}</div>`).join('');
   
-  document.getElementById('fluencyRating').innerText = data.communicationFeedback.fluency;
-  document.getElementById('grammarRating').innerText = data.communicationFeedback.grammar;
-  document.getElementById('clarityRating').innerText = data.communicationFeedback.clarity;
+  if (data.communicationFeedback) {
+    document.getElementById('fluencyRating').innerText = data.communicationFeedback.fluency;
+    document.getElementById('grammarRating').innerText = data.communicationFeedback.grammar;
+    document.getElementById('clarityRating').innerText = data.communicationFeedback.clarity;
+  }
   
-  document.getElementById('strongTopicsList').innerHTML = data.technicalFeedback.strongTopics.map(t => `<span class="badge bg-success me-1">${t}</span>`).join('');
-  document.getElementById('weakAreasList').innerHTML = data.technicalFeedback.weakAreas.map(t => `<span class="badge bg-danger me-1">${t}</span>`).join('');
+  if (data.technicalFeedback) {
+    const strongTopicsList = document.getElementById('strongTopicsList');
+    strongTopicsList.innerHTML = (data.technicalFeedback.strongTopics || []).map(t => `<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 m-1">${t}</span>`).join('');
+    
+    const weakAreasList = document.getElementById('weakAreasList');
+    weakAreasList.innerHTML = (data.technicalFeedback.weakAreas || []).map(a => `<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 m-1">${a}</span>`).join('');
+  }
 }
 
 document.getElementById('endInterviewBtn').addEventListener('click', () => {

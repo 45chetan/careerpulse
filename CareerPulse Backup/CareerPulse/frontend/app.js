@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+// API_URL is now provided by config.js
 let isLoginMode = true;
 let applications = [];
 let deleteAppId = null;
