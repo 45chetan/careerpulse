@@ -10,39 +10,118 @@ const pdf = require('pdf-parse');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
+const Usage = require('../models/Usage');
+
+// Email Configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'chetansahu4572@gmail.com',
+    pass: process.env.EMAIL_PASS // User needs to set this app password in .env
+  }
+});
+
+async function sendLimitWarning(currentCount) {
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'chetansahu4572@gmail.com',
+      to: 'chetansahu4572@gmail.com',
+      subject: '⚠️ CareerPulse: Gemini API Limit Warning',
+      text: `Warning: You have used ${currentCount} requests today. Only approx 50 requests are left for the day before the daily limit (1500) is reached. Please plan accordingly.`
+    };
+    
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('--- [EMAIL] Limit warning sent to chetansahu4572@gmail.com ---');
+    } catch (error) {
+        console.error('--- [EMAIL] Failed to send warning:', error.message);
+    }
+}
 
 // Configure Gemini
 const apiKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : "";
 console.log('API Key Loaded:', apiKey ? apiKey.substring(0, 4) + '...' : 'NOT FOUND');
 
-// Helper for Gemini Direct API Calls
-async function callGemini(prompt) {
-  // Using gemini-flash-latest to avoid high demand error on lite version
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+// Helper for Gemini Direct API Calls with Retry Logic
+async function callGemini(prompt, retries = 5) {
+  // Track Usage
+  const today = new Date().toISOString().split('T')[0];
+  let usage = await Usage.findOne({ date: today });
+  if (!usage) {
+    usage = new Usage({ date: today, count: 0 });
+  }
+  usage.count += 1;
+  await usage.save();
 
-  console.log('**************************************************');
-  console.log('--- [BACKEND] SENDING FETCH REQUEST TO GEMINI ---');
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ]
-    })
-  });
-  console.log('--- [BACKEND] FETCH REQUEST COMPLETE ---');
-  console.log('**************************************************');
-
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || 'Gemini API Error');
+  // Check if warning is needed (Limit ~1500, warning at 1450)
+  if (usage.count === 1450) {
+      sendLimitWarning(usage.count);
   }
 
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+  // Switched to gemini-3.1-flash-lite-preview as it has active quota and is more reliable for this API key.
+  const model = "gemini-3.1-flash-lite-preview";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  let delay = 2000; 
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`--- [GEMINI] Attempt ${i + 1}/${retries} using ${model} ---`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      console.log(`--- [GEMINI] Status: ${response.status} ${response.statusText} ---`);
+
+      // Handle Rate Limit (429) and Overloaded/Service Unavailable (503/504)
+      if (response.status === 429 || response.status === 503 || response.status === 504) {
+        const errorType = response.status === 429 ? "Rate Limit/Quota" : "Server Overloaded";
+        console.warn(`--- [GEMINI] ${errorType} hit. Retrying in ${delay}ms... ---`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+        continue;
+      }
+
+      if (!response.ok) {
+        const err = await response.json();
+        console.error('--- [GEMINI] Error Body:', JSON.stringify(err));
+        
+        // If the error message indicates overloaded, retry even if status isn't 503
+        if (err.error?.message?.includes('heavy load') || err.error?.message?.includes('overloaded')) {
+           console.warn(`--- [GEMINI] Detected heavy load in message. Retrying in ${delay}ms... ---`);
+           await new Promise(resolve => setTimeout(resolve, delay));
+           delay *= 2;
+           continue;
+        }
+        
+        throw new Error(err.error?.message || 'Gemini API Error');
+      }
+
+      const data = await response.json();
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        // Sometimes the API returns a success but no content due to safety or other reasons
+        if (data.promptFeedback?.blockReason) {
+            throw new Error(`Content blocked by Gemini: ${data.promptFeedback.blockReason}`);
+        }
+        throw new Error('Invalid response from Gemini');
+      }
+      return data.candidates[0].content.parts[0].text;
+
+    } catch (error) {
+      console.error(`--- [GEMINI] Request failed: ${error.message}. ---`);
+      if (i === retries - 1) throw error;
+      
+      // Retry on network errors or specified API errors
+      console.log(`Retrying (${i + 1}/${retries})...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error('Gemini API is currently under heavy load or quota exceeded. Please try again in a moment.');
 }
 // Configure Multer for resume uploads (using Memory Storage to prevent Live Server reloads)
 const storage = multer.memoryStorage();
@@ -159,22 +238,23 @@ router.post('/next-question', async (req, res) => {
     console.log(`Role: ${role}, History Length: ${history.length}`);
 
     const prompt = `
-      You are an expert technical interviewer.
+      You are an expert technical interviewer for a ${role} position.
       Resume Context: ${resumeText}
       Target Role: ${role}
       Experience Level: ${experienceLevel}
-      Interview History: ${JSON.stringify(history)}
+      Interview History (Previous Q&A): ${JSON.stringify(history)}
       Current Question Number: ${currentQuestionIndex + 1}
 
-      Tasks:
-      1. If history is empty, greet the user and ask the first introductory question based on their resume.
-      2. If history is not empty, analyze the previous answer and ask a follow-up or a new question (Technical, HR, or Scenario-based).
-      3. Keep the question professional and concise.
-      4. Ensure the question is suitable for voice interaction.
+      CRITICAL RULES:
+      1. NEVER repeat a question that has already been asked in the history.
+      2. If history is empty, start with a warm welcome and a foundational question about their background in ${role}.
+      3. If history is not empty, acknowledge the previous answer briefly and ask a follow-up or a new challenging question.
+      4. Focus on specific technical skills mentioned in the resume and how they apply to ${role}.
+      5. Keep questions concise (1-2 sentences) and optimized for voice interaction.
 
       Return ONLY a JSON object:
       {
-        "question": "The question text here",
+        "question": "Your next question here",
         "type": "Technical|HR|Scenario"
       }
     `;

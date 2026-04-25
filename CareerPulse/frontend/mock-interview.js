@@ -11,12 +11,13 @@ let interviewState = {
   currentQuestionIndex: 0,
   warnings: 0,
   isRecording: false,
+  isTransitioning: false,
   timerInterval: null,
   secondsElapsed: 0
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('--- [FRONTEND] Mock Interview Script Loaded at:', new Date().toLocaleTimeString(), '---');
+  console.log('--- [FRONTEND] Mock Interview Script Loaded ---');
 
   // DOM Elements
   const setupScreen = document.getElementById('setupScreen');
@@ -73,10 +74,15 @@ if (SpeechRecognition) {
   recognition.lang = 'en-US';
 
   recognition.onstart = () => {
+    console.log('--- [FRONTEND] Microphone Listening ---');
     interviewState.isRecording = true;
-    statusText.innerText = 'Listening...';
-    statusDot.classList.add('active');
-    waveform.classList.add('listening');
+    if (statusText) statusText.innerText = 'Listening...';
+    if (statusDot) statusDot.classList.add('active');
+    if (waveform) waveform.classList.add('listening');
+    if (transcriptContainer) {
+        transcriptContainer.innerText = '';
+        transcriptContainer.style.border = '2px solid var(--primary-color)';
+    }
   };
 
   recognition.onresult = (event) => {
@@ -90,44 +96,64 @@ if (SpeechRecognition) {
         interimTranscript += event.results[i][0].transcript;
       }
     }
-    transcriptContainer.innerText = finalTranscript || interimTranscript;
+    if (transcriptContainer) {
+        transcriptContainer.innerText = finalTranscript || interimTranscript;
+    }
   };
 
   recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error);
+    console.error('--- [FRONTEND] Recognition Error:', event.error);
+    if (event.error === 'not-allowed') {
+        alert('Microphone blocked! Please allow access in your browser settings.');
+    }
+    interviewState.isRecording = false;
     stopRecording();
   };
 
   recognition.onend = () => {
+    console.log('--- [FRONTEND] Microphone Off ---');
     interviewState.isRecording = false;
-    statusDot.classList.remove('active');
-    waveform.classList.remove('listening');
-    
-    const answer = transcriptContainer.innerText.trim();
-    if (answer && answer !== 'Your answer will appear here...') {
-      handleAnswer(answer);
-    } else {
-      // If no answer detected, ask user to repeat
-      speakText("I'm sorry, I didn't catch that. Could you please repeat?");
-    }
+    if (statusDot) statusDot.classList.remove('active');
+    if (waveform) waveform.classList.remove('listening');
+    if (transcriptContainer) transcriptContainer.style.border = '';
+
+    if (interviewState.isTransitioning) return;
+
+    // Process answer
+    setTimeout(() => {
+        const answer = transcriptContainer ? transcriptContainer.innerText.trim() : '';
+        if (answer && answer !== '' && answer !== 'Your answer will appear here...') {
+          handleAnswer(answer);
+        } else if (!interviewState.isTransitioning && !interviewState.isRecording) {
+          console.warn('No speech detected, asking to repeat.');
+          speakText("I'm sorry, I didn't hear anything. Could you please repeat that?");
+        }
+    }, 1000);
   };
 }
 
 // Text to Speech
 function speakText(text) {
   return new Promise((resolve) => {
+    console.log('--- [FRONTEND] AI Speaking ---');
+    interviewState.isTransitioning = true;
+    window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
     
-    // Attempt to pick a suitable voice
-    if (interviewState.voice === 'male') {
-      utterance.voice = voices.find(v => v.name.includes('Google US English') && v.name.includes('Male')) || voices[0];
-    } else {
-      utterance.voice = voices.find(v => v.name.includes('Google US English') && v.name.includes('Female')) || voices[1];
-    }
-    
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    // Heartbeat to prevent Chrome hanging
+    const heartbeat = setInterval(() => {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+        } else {
+            clearInterval(heartbeat);
+        }
+    }, 5000);
+
+    let voices = window.speechSynthesis.getVoices();
+    const voiceName = interviewState.voice === 'male' ? 'Male' : 'Female';
+    utterance.voice = voices.find(v => v.name.includes(voiceName) && v.lang.startsWith('en')) || voices[0];
     
     utterance.onstart = () => {
       statusText.innerText = 'AI Speaking...';
@@ -135,10 +161,20 @@ function speakText(text) {
     };
     
     utterance.onend = () => {
+      clearInterval(heartbeat);
       speakingPulse.style.display = 'none';
-      statusText.innerText = 'Waiting for your response...';
+      statusText.innerText = 'Your turn to speak';
+      interviewState.isTransitioning = false;
       resolve();
-      startRecording();
+      setTimeout(startRecording, 500);
+    };
+
+    utterance.onerror = (err) => {
+      clearInterval(heartbeat);
+      speakingPulse.style.display = 'none';
+      interviewState.isTransitioning = false;
+      resolve();
+      setTimeout(startRecording, 500);
     };
     
     window.speechSynthesis.speak(utterance);
@@ -147,11 +183,16 @@ function speakText(text) {
 
 // Recording Control
 function startRecording() {
-  if (recognition && !interviewState.isRecording) {
+  if (recognition && !interviewState.isRecording && !interviewState.isTransitioning) {
     try {
       recognition.start();
+      const btn = document.getElementById('manualMicBtn');
+      if (btn) {
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-outline-primary');
+      }
     } catch (e) {
-      console.warn('Recognition already started');
+      console.warn('Mic already active or blocked');
     }
   }
 }
@@ -159,22 +200,21 @@ function startRecording() {
 function stopRecording() {
   if (recognition && interviewState.isRecording) {
     recognition.stop();
+    const btn = document.getElementById('manualMicBtn');
+    if (btn) {
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-outline-primary');
+    }
   }
 }
 
   // Setup Form Submission
-  const startInterviewBtn = document.getElementById('startInterviewBtn');
-  
-  // Clean Approach: Use ONLY the form submit listener
   setupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log('--- [FRONTEND] Form Submit Event Triggered ---');
     await handleStartInterview();
   });
 
   async function handleStartInterview() {
-    console.log('--- [FRONTEND] Starting Interview Process ---');
-    
     const resumeFile = document.getElementById('resumeUpload').files[0];
     const jobRole = document.getElementById('jobRole').value;
     const experienceLevel = document.getElementById('experienceLevel').value;
@@ -182,17 +222,12 @@ function stopRecording() {
     const voice = voiceSelect ? voiceSelect.value : 'male';
     
     if (!resumeFile) return alert('Please upload a resume');
-    if (!jobRole) return alert('Please enter a job role');
     
-    // Disable button to prevent multiple clicks
     startInterviewBtn.disabled = true;
     startInterviewBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Initializing...';
-    
     document.getElementById('loading').classList.remove('hidden');
     
     try {
-      // 1. Upload Resume
-      console.log('--- [FRONTEND] Sending Resume to Backend... ---');
       const formData = new FormData();
       formData.append('resume', resumeFile);
 
@@ -201,48 +236,34 @@ function stopRecording() {
         body: formData
       });
       
-      console.log('--- [FRONTEND] Backend Response Status:', uploadRes.status);
-      
       if (!uploadRes.ok) {
         const errorData = await uploadRes.json();
-        console.error('--- [FRONTEND] Upload Failed:', errorData.error);
-        throw new Error(errorData.error || 'Failed to upload resume');
+        throw new Error(errorData.error || 'Upload failed');
       }
       
       const uploadData = await uploadRes.json();
-      console.log('--- [FRONTEND] Resume Upload Success! ---');
-      
       interviewState.resumeText = uploadData.text;
       interviewState.role = jobRole;
       interviewState.experienceLevel = experienceLevel;
       interviewState.voice = voice;
       
-      // Set Avatar
       aiAvatar.src = voice === 'male' ? 'assets/avatar-male.png' : 'assets/avatar-female.png';
       
-      // 2. Start Interview
-      console.log('--- [FRONTEND] Switching to Interview Screen ---');
       setupScreen.classList.add('hidden');
       interviewScreen.classList.remove('hidden');
       document.getElementById('loading').classList.add('hidden');
       
       startTimer();
-      
-      // Fetch question in background
       getNextQuestion();
       
     } catch (err) {
-      console.error('--- [FRONTEND] Setup Error:', err, '---');
       alert('Error: ' + err.message);
       document.getElementById('loading').classList.add('hidden');
-      
-      // Re-enable button on error
       startInterviewBtn.disabled = false;
       startInterviewBtn.innerHTML = '<i class="fas fa-microphone me-2"></i> Start Interview';
     }
   }
 
-// Timer Logic
 function startTimer() {
   interviewState.secondsElapsed = 0;
   interviewState.timerInterval = setInterval(() => {
@@ -253,9 +274,7 @@ function startTimer() {
   }, 1000);
 }
 
-// Interview Flow
 async function getNextQuestion() {
-  console.log('--- [FRONTEND] Fetching Next Question... ---');
   try {
     const res = await fetch(`${API_BASE_URL}/next-question`, {
       method: 'POST',
@@ -270,25 +289,23 @@ async function getNextQuestion() {
     });
     
     const data = await res.json();
-    console.log('--- [FRONTEND] Next Question Data:', data, '---');
     currentQuestionEl.innerText = data.question;
     
-    // If it's the first question, add the rules intro
     let textToSpeak = data.question;
     if (interviewState.history.length === 0) {
-      textToSpeak = "Hello! I am your AI interviewer. Before we begin, please ensure you speak only in English and stay focused on the questions. Irrelevant responses may lead to session termination. Let's start. " + data.question;
+      textToSpeak = "Hello! I am your AI interviewer. Let's start. " + data.question;
     }
     
     await speakText(textToSpeak);
     
   } catch (err) {
-    console.error('--- [FRONTEND] Error fetching question:', err, '---');
+    console.error('Question fetch error:', err);
   }
 }
 
 async function handleAnswer(answer) {
   stopRecording();
-  statusText.innerText = 'Analyzing answer...';
+  statusText.innerText = 'Analyzing...';
   
   try {
     const res = await fetch(`${API_BASE_URL}/evaluate-answer`, {
@@ -303,17 +320,16 @@ async function handleAnswer(answer) {
     
     const evalData = await res.json();
     
-    // Discipline Logic
     if (!evalData.isRelevant || !evalData.isEnglish) {
       interviewState.warnings++;
       warningAlert.classList.remove('hidden');
       
       if (interviewState.warnings === 1) {
-        warningMsg.innerText = "Please stay focused on the interview and speak in English. This is your first warning.";
-        await speakText("Please stay focused on the interview and speak only in English. This is your first warning.");
+        warningMsg.innerText = "Please stay focused and speak in English. First warning.";
+        await speakText("Please stay focused and speak in English. First warning.");
       } else {
-        warningMsg.innerText = "The interview session is terminated due to irrelevant responses.";
-        await speakText("The interview session is terminated due to irrelevant responses.");
+        warningMsg.innerText = "Session terminated due to irrelevant responses.";
+        await speakText("Session terminated. Goodbye.");
         endInterview();
         return;
       }
@@ -321,7 +337,6 @@ async function handleAnswer(answer) {
       warningAlert.classList.add('hidden');
     }
     
-    // Save to history
     interviewState.history.push({
       question: currentQuestionEl.innerText,
       answer: answer,
@@ -331,7 +346,6 @@ async function handleAnswer(answer) {
     
     interviewState.currentQuestionIndex++;
     
-    // Proceed to next question or end if 5-7 questions reached
     if (interviewState.currentQuestionIndex >= 6) {
       endInterview();
     } else {
@@ -339,7 +353,8 @@ async function handleAnswer(answer) {
     }
     
   } catch (err) {
-    console.error('Error evaluating answer:', err);
+    interviewState.currentQuestionIndex++;
+    if (interviewState.currentQuestionIndex < 6) getNextQuestion(); else endInterview();
   }
 }
 
@@ -362,8 +377,7 @@ async function endInterview() {
     displayFeedback(feedback);
     
   } catch (err) {
-    console.error('Error getting final feedback:', err);
-    alert('Failed to generate feedback. Check console for details.');
+    alert('Error generating feedback.');
   } finally {
     document.getElementById('loading').classList.add('hidden');
   }
@@ -375,19 +389,7 @@ function displayFeedback(data) {
   
   const score = data.overallScore || 0;
   const scoreEl = document.getElementById('finalScore');
-  const progressBar = document.getElementById('scoreProgressBar');
-  
-  // Animate Score and Progress Bar
-  let currentScore = 0;
-  const interval = setInterval(() => {
-    if (currentScore >= score) {
-      clearInterval(interval);
-    } else {
-      currentScore++;
-      scoreEl.innerText = `${currentScore}/10`;
-      progressBar.style.width = `${(currentScore / 10) * 100}%`;
-    }
-  }, 100);
+  scoreEl.innerText = `${score}/10`;
   
   const strengthsList = document.getElementById('strengthsList');
   strengthsList.innerHTML = (data.strengths || []).map(s => `<div class="strength-tag"><i class="fas fa-check-circle"></i> ${s}</div>`).join('');
@@ -403,21 +405,23 @@ function displayFeedback(data) {
   
   if (data.technicalFeedback) {
     const strongTopicsList = document.getElementById('strongTopicsList');
-    strongTopicsList.innerHTML = (data.technicalFeedback.strongTopics || []).map(t => `<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 m-1">${t}</span>`).join('');
+    strongTopicsList.innerHTML = (data.technicalFeedback.strongTopics || []).map(t => `<span class="badge bg-success-subtle text-success m-1">${t}</span>`).join('');
     
     const weakAreasList = document.getElementById('weakAreasList');
-    weakAreasList.innerHTML = (data.technicalFeedback.weakAreas || []).map(a => `<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 m-1">${a}</span>`).join('');
+    weakAreasList.innerHTML = (data.technicalFeedback.weakAreas || []).map(a => `<span class="badge bg-warning-subtle text-warning m-1">${a}</span>`).join('');
   }
 }
 
 document.getElementById('endInterviewBtn').addEventListener('click', () => {
-  if (confirm('Are you sure you want to end the interview?')) {
-    endInterview();
-  }
+  if (confirm('End interview?')) endInterview();
 });
 
-  // Initialize Voices
-  window.speechSynthesis.onvoiceschanged = () => {
-    // Just to ensure voices are loaded
-  };
+const manualMicBtn = document.getElementById('manualMicBtn');
+if (manualMicBtn) {
+  manualMicBtn.addEventListener('click', () => {
+    if (interviewState.isRecording) stopRecording(); else startRecording();
+  });
+}
+
+window.speechSynthesis.onvoiceschanged = () => {};
 });
