@@ -132,6 +132,8 @@ body {
 .stat-card {
   padding: 1.5rem;
   border-left: 4px solid var(--primary-color);
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card h3 {
@@ -139,6 +141,7 @@ body {
   font-weight: 800;
   margin: 0.5rem 0;
   color: var(--primary-color);
+  z-index: 1;
 }
 
 /* Tables */
@@ -204,18 +207,67 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Loading System */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 10000;
+  transition: all 0.3s ease;
+}
+
+/* Premium Spinner */
+.premium-loader {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.premium-loader div {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 4px solid transparent;
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: premium-spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.premium-loader div:nth-child(1) { animation-delay: -0.45s; }
+.premium-loader div:nth-child(2) { animation-delay: -0.3s; }
+.premium-loader div:nth-child(3) { animation-delay: -0.15s; }
+
+@keyframes premium-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  animation: pulse 1.5s infinite;
+}
+
+.overlay-text {
+  color: #ffffff !important;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .hidden { display: none !important; }

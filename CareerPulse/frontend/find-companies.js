@@ -48,10 +48,10 @@ async function handleSearchCompanies(e) {
   // Show loading skeleton
   container.innerHTML = `
     <div class="col-12 text-center p-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+      <div class="premium-loader mx-auto">
+        <div></div><div></div><div></div><div></div>
       </div>
-      <p class="mt-3 text-muted">Searching for verified IT companies in ${location}...</p>
+      <p class="loading-text mt-3">Searching for verified IT companies in ${location}...</p>
     </div>
   `;
   countDisplay.innerText = '';

@@ -58,12 +58,16 @@ async function callGemini(prompt, retries = 5) {
       sendLimitWarning(usage.count);
   }
 
-  // Switched to gemini-3.1-flash-lite-preview as it has active quota and is more reliable for this API key.
-  const model = "gemini-3.1-flash-lite-preview";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  let delay = 2000; 
+  // Using verified model names for this specialized environment (April 2026)
+  const models = ["gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3-pro-preview"];
+  let delay = 1000; 
+  let lastError = null;
 
   for (let i = 0; i < retries; i++) {
+    // Cycle through models
+    const model = models[i % models.length];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
     try {
       console.log(`--- [GEMINI] Attempt ${i + 1}/${retries} using ${model} ---`);
       
@@ -80,48 +84,46 @@ async function callGemini(prompt, retries = 5) {
       // Handle Rate Limit (429) and Overloaded/Service Unavailable (503/504)
       if (response.status === 429 || response.status === 503 || response.status === 504) {
         const errorType = response.status === 429 ? "Rate Limit/Quota" : "Server Overloaded";
-        console.warn(`--- [GEMINI] ${errorType} hit. Retrying in ${delay}ms... ---`);
+        console.warn(`--- [GEMINI] ${errorType} hit on ${model}. Retrying with next model in ${delay}ms... ---`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
+        delay *= 1.5; 
         continue;
       }
 
       if (!response.ok) {
         const err = await response.json();
-        console.error('--- [GEMINI] Error Body:', JSON.stringify(err));
+        console.error(`--- [GEMINI] ${model} Error Body:`, JSON.stringify(err));
         
-        // If the error message indicates overloaded, retry even if status isn't 503
-        if (err.error?.message?.includes('heavy load') || err.error?.message?.includes('overloaded')) {
-           console.warn(`--- [GEMINI] Detected heavy load in message. Retrying in ${delay}ms... ---`);
+        if (err.error?.message?.includes('heavy load') || err.error?.message?.includes('overloaded') || err.error?.message?.includes('high demand')) {
+           console.warn(`--- [GEMINI] Detected heavy load in message for ${model}. Retrying... ---`);
            await new Promise(resolve => setTimeout(resolve, delay));
-           delay *= 2;
+           delay *= 1.5;
            continue;
         }
         
-        throw new Error(err.error?.message || 'Gemini API Error');
+        throw new Error(err.error?.message || `Gemini API Error on ${model}`);
       }
 
       const data = await response.json();
       if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-        // Sometimes the API returns a success but no content due to safety or other reasons
         if (data.promptFeedback?.blockReason) {
-            throw new Error(`Content blocked by Gemini: ${data.promptFeedback.blockReason}`);
+            throw new Error(`Content blocked by Gemini on ${model}: ${data.promptFeedback.blockReason}`);
         }
-        throw new Error('Invalid response from Gemini');
+        throw new Error(`Invalid response from Gemini on ${model}`);
       }
       return data.candidates[0].content.parts[0].text;
 
     } catch (error) {
-      console.error(`--- [GEMINI] Request failed: ${error.message}. ---`);
-      if (i === retries - 1) throw error;
+      console.error(`--- [GEMINI] Request failed on ${model}: ${error.message}. ---`);
+      lastError = error;
+      if (i === retries - 1) break;
       
-      // Retry on network errors or specified API errors
-      console.log(`Retrying (${i + 1}/${retries})...`);
+      console.log(`Retrying with fallback (${i + 1}/${retries})...`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2;
+      delay *= 1.5;
     }
   }
-  throw new Error('Gemini API is currently under heavy load or quota exceeded. Please try again in a moment.');
+  throw new Error(`Gemini API is currently unstable across multiple models: ${lastError?.message || 'Unknown Error'}`);
 }
 // Configure Multer for resume uploads (using Memory Storage to prevent Live Server reloads)
 const storage = multer.memoryStorage();
