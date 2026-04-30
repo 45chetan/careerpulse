@@ -58,6 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Logout Logic
+  const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+  if (dropdownLogoutBtn) {
+    dropdownLogoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    });
+  }
+
   if (!setupForm) {
     console.error('--- [FRONTEND] ERROR: setupForm element not found! ---');
     return;
@@ -66,10 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Speech Recognition (Web Speech API)
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition;
+let silenceTimer = null;
 
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
@@ -83,22 +94,38 @@ if (SpeechRecognition) {
         transcriptContainer.innerText = '';
         transcriptContainer.style.border = '2px solid var(--primary-color)';
     }
+
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (interviewState.isRecording) {
+            console.log("Silence detected on start, stopping recording...");
+            stopRecording();
+        }
+    }, 10000);
   };
 
   recognition.onresult = (event) => {
     let interimTranscript = '';
     let finalTranscript = '';
 
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    for (let i = 0; i < event.results.length; ++i) {
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+        finalTranscript += event.results[i][0].transcript + ' ';
       } else {
         interimTranscript += event.results[i][0].transcript;
       }
     }
     if (transcriptContainer) {
-        transcriptContainer.innerText = finalTranscript || interimTranscript;
+        transcriptContainer.innerText = (finalTranscript + interimTranscript).trim();
     }
+
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (interviewState.isRecording) {
+            console.log("Silence detected after speech, stopping recording...");
+            stopRecording();
+        }
+    }, 5000);
   };
 
   recognition.onerror = (event) => {
@@ -106,18 +133,20 @@ if (SpeechRecognition) {
     if (event.error === 'not-allowed') {
         alert('Microphone blocked! Please allow access in your browser settings.');
     }
-    interviewState.isRecording = false;
-    stopRecording();
+    clearTimeout(silenceTimer);
   };
 
   recognition.onend = () => {
     console.log('--- [FRONTEND] Microphone Off ---');
     interviewState.isRecording = false;
+    clearTimeout(silenceTimer);
     if (statusDot) statusDot.classList.remove('active');
     if (waveform) waveform.classList.remove('listening');
     if (transcriptContainer) transcriptContainer.style.border = '';
 
     if (interviewState.isTransitioning) return;
+
+    if (statusText) statusText.innerText = 'Processing...';
 
     // Process answer
     setTimeout(() => {
@@ -128,7 +157,7 @@ if (SpeechRecognition) {
           console.warn('No speech detected, asking to repeat.');
           speakText("I'm sorry, I didn't hear anything. Could you please repeat that?");
         }
-    }, 1000);
+    }, 500);
   };
 }
 
